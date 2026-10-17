@@ -8,25 +8,29 @@ cobertura exacta: CUSTOM2/lotes Chroma, ratón iCUE 4 y liberación por disposit
 LED ausentes iCUE 3, animaciones temporizadas Lightsync y REST independiente
 de la preparación de bibliotecas.
 
-Verificación de la alpha: pasan 25 pruebas Python y seis ejecutables host
+Verificación de la alpha: pasan 27 pruebas Python (incluidas REST con sockets) y seis ejecutables host
 (decodificador Chroma, SDK 3, SDK 4, Lightsync, receptor Qt y metadatos del
 plugin). Chroma y Lightsync también pasan UBSan. Se han compilado el plugin
 Linux, los siete adaptadores DLL Windows y los fixtures de pruebas, incluido
 `extended-smoke.exe`. No se pierde ninguna exportación de las siete DLL de 0.5.
 El paquete alpha se ha instalado y desinstalado en una carpeta temporal.
 
-Pendiente: `bash scripts/verify-compatibility.sh --wine` desde una terminal sin
-las restricciones de sockets de esta sesión. Incluye pruebas nuevas de los DLL
-reales y sus threads (CUSTOM2, ratón SDK 4 y flash/pulso), además de las suites
-anteriores. No afirmar que Wine/juegos están validados antes de revisar ese
-informe. El OpenRGB activo sigue usando su versión previa.
+Verificación externa completada el 17-10-2026 con el commit
+`a60e02fa3ca0c9c2646a4feb2f269dd73dbe5555`. El informe termina con
+`PASS: comprobaciones solicitadas completadas`. Pasa la integración nativa de
+prioridad/Sequence y REST, incluido inicio con preparación pausada y parada
+por desactivación de Chroma/Game Sync. Pasan Chroma Wine y supresión por foco,
+iCUE 3/4 y Lightsync, las variantes iCUE 3/Lightsync de 32 bits, registro y
+worker de un prefijo temporal. El fixture nuevo verifica DLLs/threads reales
+para CUSTOM2, ratón SDK 4 y flash/pulso Lightsync.
 
-La primera ejecución externa pasó las pruebas REST con sockets y la integración
-de prioridad/renderizado, pero se detuvo antes de Wine porque el test exigía el
-fixture de DLL original. Se corrigió ese requisito: ahora se imprime `SKIP`
-cuando falta el fixture y se sigue comprobando el ciclo de vida de REST con la
-preparación de DLL pausada. `OPENRGB_REQUIRE_ORIGINAL_FIXTURE=1` permite exigirlo.
-Pendiente volver a ejecutar el verificador para llegar a las pruebas Wine.
+El servicio con DLL Corsair original se marcó como `SKIP` al no incluir el
+fixture propietario. No se considera revalidado por esta ejecución. El test
+permite exigirlo con `OPENRGB_REQUIRE_ORIGINAL_FIXTURE=1`.
+
+Pendiente: validación visual/rendimiento de 0.6 en juegos reales e instalación
+controlada en el equipo del usuario. El OpenRGB activo sigue usando su versión
+previa; la validación histórica de Diablo corresponde a 0.5.
 
 Prototipo 0.5.0 para OpenRGB 1.0 / Qt6 / Plugin API 5 en Linux.
 El usuario validó visualmente Diablo IV con la DLL Corsair 3.0.234 original:

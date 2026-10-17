@@ -58,6 +58,15 @@ instala plugins y usa prefijos temporales para los smoke tests Wine. Puede
 crear y conservar fixtures temporales; no utiliza los prefijos de tus juegos.
 La integración nativa opcional necesita su propio fixture de DLL original.
 
+El 17-10-2026 se completó ese verificador con `--wine` sobre el commit
+`a60e02fa3ca0c9c2646a4feb2f269dd73dbe5555`: pasan las 27 pruebas Python,
+los seis ejecutables host, la integración Qt/REST y los smoke tests Wine.
+Se observaron los paquetes de CUSTOM2, ratón iCUE 4 y flash/pulso de Lightsync
+procedentes de las DLL reales y sus threads. También pasan las pruebas de foco,
+registro y el worker en prefijos temporales. La prueba de la DLL Corsair original
+se marca `SKIP`: no se distribuye ese fixture. Este resultado valida los casos
+ensayados bajo Wine, no todos los juegos ni las variantes de SDK existentes.
+
 0.5.0 se validó visualmente con Diablo IV. **Estos cambios 0.6 no se han validado
 todavía en juegos reales ni instalado en el OpenRGB activo del usuario.**
 

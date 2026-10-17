@@ -35,7 +35,8 @@ las personas a las que quieras facilitar la prueba.
 Chroma CUSTOM2 y lotes REST; ratón y liberación por dispositivo en iCUE 4;
 paquetes iCUE 3 con LED ausentes; flash/pulso por software para Lightsync.
 Consulta la [matriz de compatibilidad y límites](docs/COMPATIBILITY.md).
-Estas mejoras están probadas de forma aislada y necesitan pruebas Wine/juegos.
+Estas mejoras pasan pruebas aisladas y de integración bajo Wine; falta
+validarlas visualmente y medir su comportamiento en juegos reales.
 
 ## Estado
 
