@@ -1,0 +1,11 @@
+/build/
+/toolchain/
+__pycache__/
+/dist/
+*.pyc
+*.o
+*.so
+*.dll
+*.exe
+*.log
+.env

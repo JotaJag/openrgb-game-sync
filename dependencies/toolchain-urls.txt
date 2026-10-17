@@ -1,0 +1,2 @@
+https://archlinux.cachyos.org/repo/extra/os/x86_64/mingw-w64-crt-14.0.0-1-any.pkg.tar.zst
+https://archlinux.cachyos.org/repo/extra/os/x86_64/mingw-w64-headers-14.0.0-1-any.pkg.tar.zst

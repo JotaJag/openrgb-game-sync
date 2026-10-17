@@ -1,0 +1,78 @@
+diff --git a/EffectManager.cpp b/EffectManager.cpp
+index 15f77fc..e925903 100644
+--- a/EffectManager.cpp
++++ b/EffectManager.cpp
+@@ -10,6 +10,7 @@
+ #include <set>
+ #include "EffectManager.h"
+ #include "OpenRGBEffectsPlugin.h"
++#include "../openrgb-game-sync/PriorityLease.h"
+ 
+ EffectManager* EffectManager::instance;
+ 
+@@ -338,6 +339,7 @@ std::map<RGBEffect*, std::vector<ControllerZone*>>EffectManager::GetEffectsMappi
+ 
+ void EffectManager::EffectThreadFunction(RGBEffect* effect)
+ {
++    PriorityLease game_priority;
+     LOG_VERBOSE("[OpenRGBEffectsPlugin] Effect %s thread started", effect->EffectDetails.EffectName.c_str());
+ 
+     TCount  effect_start        = clock->now();
+@@ -347,6 +349,17 @@ void EffectManager::EffectThreadFunction(RGBEffect* effect)
+     {
+         TCount start = clock->now();
+ 
++        // Cooperate with Game Sync: pause the effect's progression and hardware
++        // writes while a compatible game owns the LEDs. The same lock surrounds
++        // both renderers' writes, so they cannot produce competing flashes.
++        PriorityLock game_lock(game_priority);
++        if(game_priority.active())
++        {
++            game_priority.unlock();
++            std::this_thread::sleep_for(std::chrono::milliseconds(10));
++            continue;
++        }
++
+         if(!OpenRGBEffectsPlugin::controllers_updating)
+         {
+             /*---------------------------------------------*\
+@@ -406,6 +419,8 @@ void EffectManager::EffectThreadFunction(RGBEffect* effect)
+             lock.unlock();
+             OpenRGBEffectsPlugin::controller_zones_mutex.unlock_shared();
+ 
++            game_priority.unlock();
++
+             /*---------------------------------------------*\
+             | Compute FPS and duration                      |
+             \*---------------------------------------------*/
+@@ -436,6 +451,7 @@ void EffectManager::EffectThreadFunction(RGBEffect* effect)
+         }
+         else
+         {
++            game_priority.unlock();
+             std::this_thread::sleep_for(std::chrono::milliseconds(1));
+         }
+     }
+diff --git a/Effects/Sequence/Sequence.cpp b/Effects/Sequence/Sequence.cpp
+index 54a5033..f01fde5 100644
+--- a/Effects/Sequence/Sequence.cpp
++++ b/Effects/Sequence/Sequence.cpp
+@@ -55,10 +55,14 @@ void Sequence::StepEffect(std::vector<ControllerZone*> controller_zones)
+ {
+     std::vector<RGBColor> colors = ui->colorsPicker->Colors();
+     unsigned int colors_count = colors.size();
+-    unsigned int current_color_index = ((int)ceil(progress)) % colors_count;
+-
+-    float whole;
+-    float frac = std::modf(progress, &whole);
++    // Keep the current color until the fade reaches the next whole step.
++    // Rounding up here makes the sequence jump backwards at each boundary.
++    unsigned int current_color_index = ((int)floor(progress)) % colors_count;
++
++    // Match progress precision so values just below an integer are not rounded
++    // into the next step before calculating the fractional fade position.
++    double whole;
++    double frac = std::modf(progress, &whole);
+ 
+     float fade_mult;
+ 

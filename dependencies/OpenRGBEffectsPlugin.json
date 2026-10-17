@@ -1,0 +1,11 @@
+{
+    "Id" : "org.openrgb.openrgbeffectsplugin",
+    "Name" : "OpenRGB Effects Plugin",
+    "VendorId" : "openrgb",
+    "Version" : "1.0.0",
+    "VersionStr" : "1.0",
+    "Url" : "https://gitlab.com/OpenRGBDevelopers/OpenRGBEffectsPlugin",
+    "Commit" : "0e0f1b4708c302bad4270ab62349b2efe5dcc439",
+    "Description" : "Provides a variety of custom effects",
+    "OpenRGBPluginAPIVersion" : 5
+}

@@ -1,0 +1,9 @@
+{
+    "Id": "local.openrgb.gamesync",
+    "Name": "OpenRGB Game Sync",
+    "VendorId": "local",
+    "Version": "0.5.0",
+    "VersionStr": "0.5.0",
+    "Description": "Automatic priority for compatible game lighting",
+    "OpenRGBPluginAPIVersion": 5
+}
