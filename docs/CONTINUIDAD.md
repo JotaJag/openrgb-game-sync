@@ -16,8 +16,13 @@ heartbeats repetidos mantienen la prioridad sin escrituras adicionales.
 El informe termina con PASS. El fixture de DLL Corsair original sigue
 ausente (SKIP), por lo que esa ruta no se considera revalidada.
 
-El paquete alpha.2 se genera localmente; no se ha instalado sobre OpenRGB.
-La instalación activa sigue siendo alpha.1 y el usuario confirmó que funciona.
+La alpha.2 está instalada desde el 17-10-2026. El informe local
+`build/alpha2-installation-report.json` confirma arranque de ambos plugins,
+servicio original de Diablo activo y sin errores, y DLL original sin cambios.
+Se conserva copia en `~/.local/share/openrgb-backups/alpha2-20261017-133028-796021`.
+El usuario confirmó que funciona con Diablo tras actualizar. Esta confirmación
+no constituye una medición instrumental de latencia ni una validación de otros
+juegos; no se confirmó por separado la devolución de prioridad al cambiar de ventana.
 La observación sobre la tecla Q queda aplazada y no se cambia su mapeo.
 Los resultados siguientes corresponden a la alpha.1, no a la alpha.2.
 
