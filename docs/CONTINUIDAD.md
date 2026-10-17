@@ -1,5 +1,26 @@
 # Estado para continuar el desarrollo
 
+## Trabajo actual: alpha.2
+
+La rama `feature/reactivity-recovery-0.6` añade deduplicación de paquetes y
+salidas por dispositivo, supervisión de helpers con reintentos limitados y
+contadores de diagnóstico. Detalles en `REACTIVITY-RECOVERY.md`.
+Pasan 25 pruebas Python sin sockets y ocho ejecutables host, incluidos procesos
+reales que fallan o dejan de actualizar su estado y el renderizador con
+controladores simulados. Se ha compilado la integración nativa ampliada.
+Verificación externa completada el 17-10-2026 sobre `098e23e`: pasan las
+27 pruebas Python, los ocho ejecutables host, la integración nativa con
+Sequence/REST y las pruebas Wine de Chroma, iCUE 3/4 y Lightsync, incluidas
+las variantes de 32 bits y CUSTOM2/ratón/flash/pulso. Se confirma que los
+heartbeats repetidos mantienen la prioridad sin escrituras adicionales.
+El informe termina con PASS. El fixture de DLL Corsair original sigue
+ausente (SKIP), por lo que esa ruta no se considera revalidada.
+
+El paquete alpha.2 se genera localmente; no se ha instalado sobre OpenRGB.
+La instalación activa sigue siendo alpha.1 y el usuario confirmó que funciona.
+La observación sobre la tecla Q queda aplazada y no se cambia su mapeo.
+Los resultados siguientes corresponden a la alpha.1, no a la alpha.2.
+
 ## Punto de partida
 
 La rama `feature/compatibility-0.6` añade una alpha `0.6.0-alpha.1` sobre la
@@ -8,18 +29,36 @@ cobertura exacta: CUSTOM2/lotes Chroma, ratón iCUE 4 y liberación por disposit
 LED ausentes iCUE 3, animaciones temporizadas Lightsync y REST independiente
 de la preparación de bibliotecas.
 
-Verificación de la alpha: pasan 25 pruebas Python y seis ejecutables host
+Verificación de la alpha: pasan 27 pruebas Python (incluidas REST con sockets) y seis ejecutables host
 (decodificador Chroma, SDK 3, SDK 4, Lightsync, receptor Qt y metadatos del
 plugin). Chroma y Lightsync también pasan UBSan. Se han compilado el plugin
 Linux, los siete adaptadores DLL Windows y los fixtures de pruebas, incluido
 `extended-smoke.exe`. No se pierde ninguna exportación de las siete DLL de 0.5.
 El paquete alpha se ha instalado y desinstalado en una carpeta temporal.
 
-Pendiente: `bash scripts/verify-compatibility.sh --wine` desde una terminal sin
-las restricciones de sockets de esta sesión. Incluye pruebas nuevas de los DLL
-reales y sus threads (CUSTOM2, ratón SDK 4 y flash/pulso), además de las suites
-anteriores. No afirmar que Wine/juegos están validados antes de revisar ese
-informe. El OpenRGB activo sigue usando su versión previa.
+Verificación externa completada el 17-10-2026 con el commit
+`a60e02fa3ca0c9c2646a4feb2f269dd73dbe5555`. El informe termina con
+`PASS: comprobaciones solicitadas completadas`. Pasa la integración nativa de
+prioridad/Sequence y REST, incluido inicio con preparación pausada y parada
+por desactivación de Chroma/Game Sync. Pasan Chroma Wine y supresión por foco,
+iCUE 3/4 y Lightsync, las variantes iCUE 3/Lightsync de 32 bits, registro y
+worker de un prefijo temporal. El fixture nuevo verifica DLLs/threads reales
+para CUSTOM2, ratón SDK 4 y flash/pulso Lightsync.
+
+El servicio con DLL Corsair original se marcó como `SKIP` al no incluir el
+fixture propietario. No se considera revalidado por esta ejecución. El test
+permite exigirlo con `OPENRGB_REQUIRE_ORIGINAL_FIXTURE=1`.
+
+La alpha 0.6.0-alpha.1 ya está instalada y OpenRGB reiniciado. La actualización
+controlada confirmó la carga de ambos plugins y el servicio de Diablo activo,
+sin errores y esperando sesiones. La DLL original de Diablo conserva su SHA-256
+validado; se mantienen la preparación automática desactivada y los bloqueos
+para Battle.net/Diablo. Existe copia completa de configuración y plugins para
+restaurar la instalación anterior.
+
+El usuario confirmó posteriormente que la alpha.1 funciona con Diablo.
+No se dispone de una medición instrumental de latencia ni de validación
+exhaustiva de todos los juegos.
 
 Prototipo 0.5.0 para OpenRGB 1.0 / Qt6 / Plugin API 5 en Linux.
 El usuario validó visualmente Diablo IV con la DLL Corsair 3.0.234 original:

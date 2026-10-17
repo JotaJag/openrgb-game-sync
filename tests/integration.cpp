@@ -25,6 +25,7 @@ class Device : public NullController
 {
 public:
     RGBColor color = 0;
+    std::atomic<unsigned int> writes{0};
     unsigned int GetLEDCount() override { return 1; }
     unsigned int GetZoneCount() override { return 1; }
     unsigned int GetZoneLEDsCount(unsigned int) override { return 1; }
@@ -34,6 +35,7 @@ public:
     std::string GetModeName(unsigned int) override { return "Direct"; }
     void SetAllColors(RGBColor c) override { color = c; }
     void SetAllZoneColors(int, RGBColor c) override { color = c; }
+    void UpdateLEDs() override { ++writes; }
 };
 
 class API : public NullAPI
@@ -115,6 +117,11 @@ int main(int argc, char** argv)
         PriorityLease lease; PriorityLock lock(lease);
         check(api.device.color == ToRGBColor(0,255,0), "game color reaches the OpenRGB controller without competing writes");
     }
+    const auto unchangedWrites = api.device.writes.load();
+    before = effect.steps.load();
+    for (int i=0; i<12; ++i) { send(); wait(200); }
+    check(api.device.writes == unchangedWrites && effect.steps == before,
+          "unchanged heartbeats keep game priority beyond lease expiry without hardware writes");
     toggle->setChecked(false); wait(100);
     check(effect.steps > before && api.settings["enabled"] == false, "switch disables game priority and immediately restores Sequence");
     check(api.staticDevice.color == ToRGBColor(32,16,8), "devices outside Sequence recover their previous static lighting");
@@ -177,11 +184,22 @@ server.shutdown();server.server_close()
     QDir().mkpath(configPath);
     QFile config(configPath+"/GameSyncAutomation.json"); if (!config.open(QIODevice::WriteOnly)) return 2;
     QFile prefixFile((sourceRoot + "/build/pipe-lab/prefix.txt"));
-    if (!prefixFile.open(QIODevice::ReadOnly)) return 2;
-    auto sdkPrefix=QString::fromUtf8(prefixFile.readAll()).trimmed();
+    QString sdkPrefix;
+    if (prefixFile.open(QIODevice::ReadOnly)) sdkPrefix=QString::fromUtf8(prefixFile.readAll()).trimmed();
+    const bool hasOriginalFixture = sdkPrefix.startsWith(QDir::tempPath()+"/openrgb-") &&
+        QFile::exists(sdkPrefix+"/system.reg") &&
+        QFile::exists(sourceRoot+"/build/pipe-lab/original-probe.exe") &&
+        QFile::exists(sourceRoot+"/build/pipe-lab/original-cue.dll");
+    if (!hasOriginalFixture && qEnvironmentVariableIsSet("OPENRGB_REQUIRE_ORIGINAL_FIXTURE")) {
+        std::cerr << "FAIL: required isolated original Corsair DLL fixture is missing\n";
+        return 2;
+    }
+    if (!hasOriginalFixture) std::cout << "SKIP: original Corsair DLL fixture is absent; no original-DLL service test was run\n";
     auto sdkStatus=testHome.path()+"/pipe-status.json";
-    config.write(QJsonDocument(QJsonObject{{"enabled",true},{"rest",true},
-        {"pipe_services",QJsonArray{QJsonObject{{"prefix",sdkPrefix},{"wine","/usr/bin/wine"},{"status",sdkStatus}}}},
+    QJsonArray services;
+    if (hasOriginalFixture) services.append(QJsonObject{{"prefix",sdkPrefix},{"wine","/usr/bin/wine"},{"status",sdkStatus}});
+    config.write(QJsonDocument(QJsonObject{{"enabled",false},{"rest",true},
+        {"pipe_services",services},
         {"script",(sourceRoot + "/auto_prepare.py")},
         {"status",testHome.path()+"/.local/share/openrgb-game-sync/automation/status.json"}}).toJson()); config.close();
     qputenv("OPENRGB_GAME_SYNC_BACKGROUND","1");
@@ -192,7 +210,13 @@ server.shutdown();server.server_close()
     bool connected=http.waitForConnected(1000);
     QByteArray response;
     if(connected){http.write("GET /razer/chromasdk HTTP/1.0\r\nHost: localhost\r\n\r\n"); http.waitForBytesWritten(500); if(http.waitForReadyRead(1000)) response=http.readAll();}
-    check(connected && response.contains("200 OK"),"loading the plugin starts its isolated Chroma REST helper");
+    check(connected && response.contains("200 OK"),"loading the plugin starts REST while DLL preparation is paused");
+    auto* chromaToggle=plugin.GetWidget()->findChild<QCheckBox*>("source1");
+    chromaToggle->setChecked(false);wait(200);
+    QTcpSocket chromaStopped;chromaStopped.connectToHost(QHostAddress::LocalHost,restPort);
+    check(!chromaStopped.waitForConnected(300),"disabling Chroma stops its REST helper");
+    chromaToggle->setChecked(true);wait(500);
+    if (hasOriginalFixture) {
     QElapsedTimer sdkReady; sdkReady.start();
     while(sdkReady.elapsed()<8000) {
         QFile stateFile(sdkStatus);
@@ -210,13 +234,16 @@ server.shutdown();server.server_close()
     QElapsedTimer sdkFinished;sdkFinished.start();
     while(sdkClient.state()!=QProcess::NotRunning && sdkFinished.elapsed()<4000) wait(25);
     check(sdkClient.state()==QProcess::NotRunning && sdkClient.exitCode()==0,"original DLL API checks pass under the plugin-managed service");
+    }
     auto* lifecycleToggle=plugin.GetWidget()->findChild<QCheckBox*>("gamePriority");
     lifecycleToggle->setChecked(false); wait(200);
     QTcpSocket stopped; stopped.connectToHost(QHostAddress::LocalHost,restPort);
     check(!stopped.waitForConnected(300),"disabling Game Sync stops the REST helper");
+    if (hasOriginalFixture) {
     QFile stoppedState(sdkStatus);bool pipeStopped=false;
     if(stoppedState.open(QIODevice::ReadOnly))pipeStopped=!QJsonDocument::fromJson(stoppedState.readAll()).object().value("running").toBool();
     check(pipeStopped,"disabling Game Sync stops the original-DLL service");
+    }
     plugin.Unload(); qputenv("HOME",oldHome); qunsetenv("OPENRGB_GAME_SYNC_REST_PORT"); qunsetenv("OPENRGB_GAME_SYNC_BACKGROUND");
     return ok ? 0 : 1;
 }

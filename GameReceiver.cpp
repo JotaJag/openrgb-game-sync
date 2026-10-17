@@ -42,6 +42,11 @@ void GameReceiver::setSourceEnabled(unsigned int source, bool value)
     if (!value && ownerSource == source) release();
 }
 
+void GameReceiver::releaseSource(unsigned int source)
+{
+    if (active() && ownerSource == source) release();
+}
+
 void GameReceiver::readPackets()
 {
     while (socket.hasPendingDatagrams())
@@ -73,7 +78,7 @@ void GameReceiver::processPacket(const QByteArray& data)
     {
         if (p.version != 2 || data.size() != GS_HEADER_SIZE || p.count || p.rows || p.cols ||
             p.device < 1 || p.device > 6 || session != owner || source != ownerSource) return;
-        frames.remove(p.device);
+        if (!frames.remove(p.device)) return;
         if (frames.isEmpty()) release();
         else if (changed) changed();
         return;
@@ -93,8 +98,15 @@ void GameReceiver::processPacket(const QByteArray& data)
         if (status) status(names[source] + " · " + application);
     }
     lastFrame = clock.elapsed();
+    ++receivedFrames;
     GameFrame frame{p.device, p.rows, p.cols, {}};
     for (unsigned i = 0; i < p.count; ++i) frame.colors.push_back(p.colors[i] & 0xffffff);
+    const auto previous = frames.constFind(p.device);
+    if (previous != frames.cend() && previous->rows == frame.rows && previous->cols == frame.cols && previous->colors == frame.colors)
+    {
+        ++duplicateFrames;
+        return; // A heartbeat renews ownership without another hardware write.
+    }
     frames[p.device] = frame;
     if (changed) changed();
 }

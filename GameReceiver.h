@@ -26,6 +26,7 @@ class GameReceiver : public QObject
     bool enabled = true;
     bool sources[4] = {false, true, true, true};
     unsigned int ownerSource = 0;
+    quint64 receivedFrames = 0, duplicateFrames = 0;
     void readPackets();
     void processPacket(const QByteArray& data);
     friend struct GameReceiverTest;
@@ -39,6 +40,9 @@ public:
     void setEnabled(bool value);
     void setSourceEnabled(unsigned int source, bool value);
     void release();
+    void releaseSource(unsigned int source);
+    struct Statistics { quint64 received, duplicates; qint64 lastFrameAgeMs; };
+    Statistics statistics() const { return {receivedFrames, duplicateFrames, active() ? clock.elapsed() - lastFrame : -1}; }
     bool active() const { return !owner.isEmpty(); }
     QString appName() const { return application; }
     quint16 port() const { return socket.localPort(); }

@@ -2,7 +2,7 @@
 
 Plugin para dar prioridad a la iluminación enviada por juegos compatibles en
 Linux con Wine/Proton y devolver el control a Effects cuando dejan de enviar.
-Rama de desarrollo 0.6.0-alpha.1. La prerelease publicada 0.5.0 se conserva.
+Rama de desarrollo 0.6.0-alpha.2. La prerelease publicada 0.5.0 se conserva.
 
 ## Instalación sencilla
 
@@ -35,7 +35,14 @@ las personas a las que quieras facilitar la prueba.
 Chroma CUSTOM2 y lotes REST; ratón y liberación por dispositivo en iCUE 4;
 paquetes iCUE 3 con LED ausentes; flash/pulso por software para Lightsync.
 Consulta la [matriz de compatibilidad y límites](docs/COMPATIBILITY.md).
-Estas mejoras están probadas de forma aislada y necesitan pruebas Wine/juegos.
+Estas mejoras pasan pruebas aisladas y de integración bajo Wine; falta
+validarlas visualmente y medir su comportamiento en juegos reales.
+
+La alpha.2 evita escrituras de iluminación repetidas, supervisa los servicios
+con reintentos limitados y muestra contadores de diagnóstico. Consulta
+[reactividad y recuperación](docs/REACTIVITY-RECOVERY.md) para sus límites y
+pruebas. La integración nativa y las pruebas de adaptadores bajo Wine pasan;
+la ruta de la DLL Corsair original no se ha revalidado en esta ejecución.
 
 ## Estado
 

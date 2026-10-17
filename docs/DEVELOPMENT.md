@@ -53,6 +53,11 @@ Consulta el código de `pipe_lab/` para preparar ese fixture: el desarrollador
 debe aportar su propia DLL, no se distribuye. Para las pruebas UMU define
 `PROTONPATH` explícitamente. No uses un prefijo de juego real para las pruebas.
 
+La integración nativa marca como `SKIP` el servicio de DLL Corsair original si
+falta su fixture aislado (prefijo temporal, DLL original y probe). Las pruebas
+REST y el resto de suites continúan. Para exigir también ese caso, define
+`OPENRGB_REQUIRE_ORIGINAL_FIXTURE=1`; su ausencia será un fallo explícito.
+
 Generar paquete instalable:
 
 ```bash

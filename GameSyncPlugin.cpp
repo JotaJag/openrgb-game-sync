@@ -15,7 +15,7 @@ OpenRGBPluginInfo GameSyncPlugin::GetPluginInfo()
     OpenRGBPluginInfo info{};
     info.Name = "OpenRGB Game Sync";
     info.Description = "Iluminación Chroma, iCUE y Lightsync con prioridad automática";
-    info.Version = "0.6.0-alpha.1";
+    info.Version = "0.6.0-alpha.2";
     info.Commit = "local";
     info.Label = "Game Sync";
     info.Location = OPENRGB_PLUGIN_LOCATION_TOP;
@@ -52,7 +52,13 @@ void GameSyncPlugin::Load(OpenRGBPluginAPIInterface* value)
     pipeLabel->setTextFormat(Qt::PlainText);
     pipeLabel->setWordWrap(true);
     layout->addWidget(pipeLabel);
-    auto* note = new QLabel("Prepara automáticamente juegos compatibles de tus bibliotecas Wine/Proton.\n"
+    diagnosticsLabel = new QLabel(widget);
+    diagnosticsLabel->setObjectName("gameDiagnostics");
+    diagnosticsLabel->setTextFormat(Qt::PlainText);
+    diagnosticsLabel->setWordWrap(true);
+    layout->addWidget(diagnosticsLabel);
+    hardwareWrites = 0;
+    auto* note = new QLabel("Recibe iluminación de juegos configurados para Wine/Proton.\n"
                            "Si no hay efectos compatibles, se mantiene tu iluminación habitual.\n"
                            "Puedes elegir qué integraciones aceptar. La compatibilidad depende de la versión del SDK que use el juego.", widget);
     note->setWordWrap(true);
@@ -101,14 +107,6 @@ void GameSyncPlugin::Load(OpenRGBPluginAPIInterface* value)
         automationDeadline->stop();
         if (widget && toggle->isChecked()) automationLabel->setText("No se pudo iniciar la preparación automática.");
     });
-    restProcess = new QProcess(this);
-    restProcess->setStandardOutputFile(QProcess::nullDevice());
-    restProcess->setStandardErrorFile(QProcess::nullDevice());
-    connect(restProcess, &QProcess::errorOccurred, this, [this] { if (!widget) return; restUnavailable = true; updateAutomationStatus(); });
-    connect(restProcess, qOverload<int,QProcess::ExitStatus>(&QProcess::finished), this, [this](int code, QProcess::ExitStatus status) {
-        if (!widget) return;
-        if (toggle->isChecked() && (code || status == QProcess::CrashExit)) { restUnavailable = true; updateAutomationStatus(); }
-    });
     automationDeadline = new QTimer(this);
     automationDeadline->setSingleShot(true);
     connect(automationDeadline, &QTimer::timeout, this, [this] {
@@ -137,10 +135,12 @@ void GameSyncPlugin::Load(OpenRGBPluginAPIInterface* value)
     pipeStatusTimer = new QTimer(this);
     pipeStatusTimer->setInterval(1000);
     connect(pipeStatusTimer, &QTimer::timeout, this, &GameSyncPlugin::updatePipeStatus);
+    connect(pipeStatusTimer, &QTimer::timeout, this, &GameSyncPlugin::updateDiagnostics);
     pipeStatusTimer->start();
     manageRest();
     managePipeServices();
     prepareGames();
+    updateDiagnostics();
 }
 
 void GameSyncPlugin::prepareGames()
@@ -160,39 +160,63 @@ void GameSyncPlugin::prepareGames()
     automationDeadline->start(15000);
 }
 
+static QString helperMessage(const HelperProcess::Status& state)
+{
+    using State = HelperProcess::State;
+    if (state.state == State::WaitingRetry)
+        return QString("Reintentando conexión · intento %1 de 5 · espera %2 s").arg(state.retries).arg((state.retryInMs+999)/1000);
+    if (state.state == State::Recovering) return "Recuperando servicio…";
+    if (state.state == State::Exhausted) return "Reintentos agotados. Desactiva y reactiva esta integración para reintentar.";
+    return "Iniciando servicio…";
+}
+
 void GameSyncPlugin::manageRest()
 {
-    if (!restProcess || !api) return;
+    if (!api) return;
     QFile config(QString::fromStdString(api->GetConfigurationDirectory()) + "/plugins/settings/GameSyncAutomation.json");
     QJsonObject settings;
     if (config.open(QIODevice::ReadOnly)) settings = QJsonDocument::fromJson(config.readAll()).object();
     auto script = QFileInfo(settings.value("script").toString()).dir().filePath("chroma_rest.py");
-    // REST is a separate opt-in; it never needs launcher/DLL preparation enabled.
-    bool wanted = toggle->isChecked() && sourceToggles[0]->isChecked() &&
-                  settings.value("rest").toBool() && QFile::exists(script);
+    const bool wanted = toggle->isChecked() && sourceToggles[0]->isChecked() &&
+                        settings.value("rest").toBool() && QFile::exists(script);
     if (!wanted) {
-        if (restProcess->state() != QProcess::NotRunning) { restProcess->terminate(); if (!restProcess->waitForFinished(500)) restProcess->kill(); }
-        restUnavailable = false;
+        if (restProcess) restProcess->setEnabled(false);
+        updateAutomationStatus();
         return;
     }
-    if (restProcess->state() == QProcess::NotRunning)
-        restProcess->start("/usr/bin/python3", {script});
+    if (!restProcess) {
+        HelperProcess::Config config{"/usr/bin/python3", {script}, {},
+            QString::fromStdString(api->GetConfigurationDirectory())+"/plugins/settings/GameSyncREST.log"};
+        restProcess = new HelperProcess(config, this);
+        restProcess->unavailable = [this] { if (receiver) receiver->releaseSource(1); };
+        restProcess->changed = [this] { updateAutomationStatus(); };
+    }
+    restProcess->setEnabled(true);
+    updateAutomationStatus();
 }
 
 void GameSyncPlugin::updateAutomationStatus()
 {
-    if (!widget || !toggle || !toggle->isChecked()) return;
-    QFile file(automationStatusPath);
-    if (!file.open(QIODevice::ReadOnly)) return;
-    auto state = QJsonDocument::fromJson(file.readAll()).object();
-    auto errors = state.value("errors").toArray();
-    if (restUnavailable) errors.append("Chroma REST no está disponible. Comprueba si el puerto local 54235 está ocupado.");
-    auto launch = state.value("launch").toObject();
-    for (auto error : launch.value("errors").toArray()) errors.append(error);
-    QStringList details;
-    for (auto error : errors) details << error.toString();
-    automationLabel->setText(errors.isEmpty() ? "Preparación automática activa." :
-        QString("Preparación parcial: %1 incidencias. Pasa el ratón para ver los detalles.").arg(errors.size()));
+    if (!widget || !toggle || !toggle->isChecked() || !api) return;
+    QFile config(QString::fromStdString(api->GetConfigurationDirectory())+"/plugins/settings/GameSyncAutomation.json");
+    QJsonObject settings;
+    if (config.open(QIODevice::ReadOnly)) settings = QJsonDocument::fromJson(config.readAll()).object();
+    QStringList messages, details;
+    if (!settings.value("enabled").toBool()) messages << "Preparación automática de bibliotecas desactivada.";
+    else {
+        QFile file(settings.value("status").toString());
+        QJsonObject state;
+        if (file.open(QIODevice::ReadOnly)) state = QJsonDocument::fromJson(file.readAll()).object();
+        const auto errors = state.value("errors").toArray();
+        messages << (errors.isEmpty() ? "Preparación automática activa." : QString("Preparación parcial: %1 incidencias.").arg(errors.size()));
+        for (auto error : errors) details << error.toObject().value("message").toString();
+    }
+    if (restProcess && restProcess->status().state != HelperProcess::State::Stopped) {
+        const auto state = restProcess->status();
+        messages << (state.state == HelperProcess::State::Ready ? "Chroma REST activo." : "Chroma REST · "+helperMessage(state));
+        if (!state.error.isEmpty()) details << state.error;
+    }
+    automationLabel->setText(messages.join("\n"));
     automationLabel->setToolTip(details.join("\n"));
 }
 
@@ -200,11 +224,8 @@ void GameSyncPlugin::managePipeServices(bool stopping)
 {
     if (stopping || !toggle || !toggle->isChecked() || !sourceToggles[1]->isChecked()) {
         for (auto* process : pipeProcesses) {
-            process->disconnect(this);
-            if (process->state() != QProcess::NotRunning) {
-                process->terminate();
-                if (!process->waitForFinished(1500)) { process->kill(); process->waitForFinished(500); }
-            }
+            process->changed = {}; process->unavailable = {};
+            process->setEnabled(false);
             delete process;
         }
         pipeProcesses.clear(); pipeStatusPaths.clear();
@@ -214,25 +235,24 @@ void GameSyncPlugin::managePipeServices(bool stopping)
     if (!api || !pipeProcesses.empty()) return;
     QFile config(QString::fromStdString(api->GetConfigurationDirectory()) + "/plugins/settings/GameSyncAutomation.json");
     if (!config.open(QIODevice::ReadOnly)) return;
-    auto settings = QJsonDocument::fromJson(config.readAll()).object();
-    auto script = QFileInfo(settings.value("script").toString()).dir().filePath("pipe_service/run.py");
+    const auto settings = QJsonDocument::fromJson(config.readAll()).object();
+    const auto script = QFileInfo(settings.value("script").toString()).dir().filePath("pipe_service/run.py");
     if (!QFile::exists(script)) return;
     for (auto entry : settings.value("pipe_services").toArray()) {
         if (pipeProcesses.size() >= 4) break;
-        auto service = entry.toObject();
-        auto prefix = service.value("prefix").toString();
-        auto statusPath = service.value("status").toString();
-        if (prefix.isEmpty() || statusPath.isEmpty() || !QFile::exists(prefix + "/system.reg")) continue;
-        auto* process = new QProcess(this);
+        const auto service = entry.toObject();
+        const auto prefix = service.value("prefix").toString();
+        const auto statusPath = service.value("status").toString();
+        if (prefix.isEmpty() || statusPath.isEmpty() || !QFile::exists(prefix+"/system.reg")) continue;
         QStringList args{script, "--prefix", prefix, "--status", statusPath};
-        auto proton = service.value("proton").toString();
+        const auto proton = service.value("proton").toString();
         if (!proton.isEmpty()) args << "--umu-proton" << proton;
         else args << "--wine" << service.value("wine").toString("/usr/bin/wine");
-        process->setStandardOutputFile(QProcess::nullDevice());
-        QDir().mkpath(QFileInfo(statusPath).absolutePath());
-        process->setStandardErrorFile(statusPath + ".log", QIODevice::Append);
+        auto* process = new HelperProcess({"/usr/bin/python3", args, statusPath, statusPath+".log"}, this);
+        process->unavailable = [this] { if (receiver) receiver->releaseSource(2); };
+        process->changed = [this] { updatePipeStatus(); };
         pipeProcesses.push_back(process); pipeStatusPaths << statusPath;
-        process->start("/usr/bin/python3", args);
+        process->setEnabled(true);
     }
     updatePipeStatus();
 }
@@ -241,23 +261,34 @@ void GameSyncPlugin::updatePipeStatus()
 {
     if (!widget || !toggle || !toggle->isChecked() || !sourceToggles[1]->isChecked()) return;
     if (pipeProcesses.empty()) return;
-    int connected = 0, calls = 0; QStringList errors; bool failed = false, ready = false;
-    for (size_t i=0; i<pipeProcesses.size(); ++i) {
-        failed |= pipeProcesses[i]->state() == QProcess::NotRunning;
-        QFile file(pipeStatusPaths[int(i)]);
-        if (!file.open(QIODevice::ReadOnly)) continue;
-        auto state = QJsonDocument::fromJson(file.readAll()).object();
-        ready |= state.value("running").toBool();
-        connected += state.value("sessions").toInt();
-        auto methods = state.value("calls").toObject();
-        calls += methods.value("CorsairSetLedsColors").toInt() + methods.value("CorsairSetLedsColorsFlushBuffer").toInt();
-        for (auto error : state.value("errors").toArray()) errors << error.toString();
+    int connected = 0, calls = 0;
+    QStringList errors, problems, history;
+    for (const auto* process : pipeProcesses) {
+        const auto state = process->status();
+        if (state.state != HelperProcess::State::Ready) problems << helperMessage(state);
+        else {
+            connected += state.health.value("sessions").toInt();
+            const auto methods = state.health.value("calls").toObject();
+            calls += methods.value("CorsairSetLedsColors").toInt()+methods.value("CorsairSetLedsColorsFlushBuffer").toInt();
+            for (auto error : state.health.value("errors").toArray()) errors << error.toString();
+        }
+        if (!state.error.isEmpty()) history << "Última incidencia: "+state.error;
     }
-    pipeLabel->setText(failed ? "El servicio iCUE original se ha detenido; consulta su registro." :
-        !ready ? "Iniciando servicio para la DLL original de iCUE…" :
-        !errors.isEmpty() ? "Servicio iCUE original activo con funciones pendientes (detalles al pasar el ratón)." :
+    pipeLabel->setText(!problems.isEmpty() ? "iCUE original · "+problems.join(" · ") :
+        !errors.isEmpty() ? "Servicio iCUE original activo con incidencias (detalles al pasar el ratón)." :
         QString("iCUE original · %1 conexiones · %2 actualizaciones de color").arg(connected).arg(calls));
-    pipeLabel->setToolTip(errors.join("\n") + "\n" + pipeStatusPaths.join("\n"));
+    pipeLabel->setToolTip((errors+history+pipeStatusPaths).join("\n"));
+}
+
+void GameSyncPlugin::updateDiagnostics()
+{
+    if (!diagnosticsLabel || !receiver) return;
+    const auto stats = receiver->statistics();
+    diagnosticsLabel->setText(QString("Actividad · %1 fotogramas · %2 sin cambios · %3 envíos al hardware")
+        .arg(stats.received).arg(stats.duplicates).arg(hardwareWrites));
+    diagnosticsLabel->setToolTip(stats.lastFrameAgeMs < 0 ? "Sin sesión de juego activa." :
+        QString("Último fotograma recibido hace %1 ms. Los mensajes repetidos mantienen la sesión sin reenviar colores.").arg(stats.lastFrameAgeMs));
+    updateAutomationStatus();
 }
 
 void GameSyncPlugin::saveSettings()
@@ -320,16 +351,18 @@ void GameSyncPlugin::render()
         if (direct < 0) continue;
         if (!snapshots.count(controller))
         {
-            Snapshot saved{controller->GetActiveMode(), {}};
+            Snapshot saved{controller->GetActiveMode(), {}, {}};
             for (unsigned i = 0; i < controller->GetLEDCount(); ++i) saved.colors.push_back(controller->GetColor(i));
             snapshots.emplace(controller, std::move(saved));
         }
-        if (controller->GetActiveMode() != direct) { controller->SetActiveMode(direct); controller->UpdateMode(); }
+        const bool modeChanged = controller->GetActiveMode() != direct;
+        if (modeChanged) { controller->SetActiveMode(direct); controller->UpdateMode(); }
+        std::vector<RGBColor> output(controller->GetLEDCount());
         const bool keyboard = controller->GetDeviceType() == DEVICE_TYPE_KEYBOARD;
         if (keyboard && frames.contains(1))
         {
             const auto& f = frames[1];
-            controller->SetAllColors(average(f));
+            std::fill(output.begin(), output.end(), average(f));
             for (unsigned z = 0; z < controller->GetZoneCount(); ++z)
             {
                 unsigned h = controller->GetZoneMatrixMapHeight(z), w = controller->GetZoneMatrixMapWidth(z);
@@ -341,7 +374,7 @@ void GameSyncPlugin::render()
                     if (led >= controller->GetLEDCount()) continue;
                     unsigned row = h > 1 ? y * (f.rows - 1) / (h - 1) : 0;
                     unsigned col = w > 1 ? x * (f.cols - 1) / (w - 1) : 0;
-                    controller->SetColor(led, f.colors[int(row * f.cols + col)]);
+                    output[led] = f.colors[int(row * f.cols + col)];
                 }
             }
         }
@@ -356,9 +389,16 @@ void GameSyncPlugin::render()
                 case DEVICE_TYPE_KEYPAD: role = 5; break;
                 default: break;
             }
-            controller->SetAllColors(average(frames.contains(role) ? frames[role] : ambient));
+            std::fill(output.begin(), output.end(), average(frames.contains(role) ? frames[role] : ambient));
         }
-        controller->UpdateLEDs();
+        auto& submitted = snapshots.at(controller).submitted;
+        if (modeChanged || submitted != output) {
+            for (unsigned i=0; i<output.size(); ++i)
+                if (modeChanged || i>=submitted.size() || submitted[i]!=output[i]) controller->SetColor(i,output[i]);
+            controller->UpdateLEDs();
+            submitted = std::move(output);
+            ++hardwareWrites;
+        }
     }
     dirty = false;
 }
@@ -385,12 +425,15 @@ void GameSyncPlugin::OnProfileAboutToLoad()
 
 void GameSyncPlugin::Unload()
 {
+    if (renderTimer) renderTimer->stop();
+    if (receiver) receiver->setEnabled(false);
     if (pipeStatusTimer) pipeStatusTimer->stop();
     managePipeServices(true);
     if (automationTimer) automationTimer->stop();
     if (automationDeadline) automationDeadline->stop();
-    if (restProcess && restProcess->state() != QProcess::NotRunning) {
-        restProcess->terminate(); if (!restProcess->waitForFinished(500)) { restProcess->kill(); restProcess->waitForFinished(500); }
+    if (restProcess) {
+        restProcess->changed = {}; restProcess->unavailable = {};
+        restProcess->setEnabled(false); delete restProcess; restProcess = nullptr;
     }
     if (automationProcess && automationProcess->state() != QProcess::NotRunning) {
         automationProcess->terminate();
@@ -404,5 +447,6 @@ void GameSyncPlugin::Unload()
     toggle = nullptr;
     automationLabel = nullptr;
     pipeLabel = nullptr;
+    diagnosticsLabel = nullptr;
     api = nullptr;
 }
