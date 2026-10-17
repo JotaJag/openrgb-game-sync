@@ -21,6 +21,13 @@ reales y sus threads (CUSTOM2, ratón SDK 4 y flash/pulso), además de las suite
 anteriores. No afirmar que Wine/juegos están validados antes de revisar ese
 informe. El OpenRGB activo sigue usando su versión previa.
 
+La primera ejecución externa pasó las pruebas REST con sockets y la integración
+de prioridad/renderizado, pero se detuvo antes de Wine porque el test exigía el
+fixture de DLL original. Se corrigió ese requisito: ahora se imprime `SKIP`
+cuando falta el fixture y se sigue comprobando el ciclo de vida de REST con la
+preparación de DLL pausada. `OPENRGB_REQUIRE_ORIGINAL_FIXTURE=1` permite exigirlo.
+Pendiente volver a ejecutar el verificador para llegar a las pruebas Wine.
+
 Prototipo 0.5.0 para OpenRGB 1.0 / Qt6 / Plugin API 5 en Linux.
 El usuario validó visualmente Diablo IV con la DLL Corsair 3.0.234 original:
 las luces funcionan y el rendimiento parece correcto después de corregir
