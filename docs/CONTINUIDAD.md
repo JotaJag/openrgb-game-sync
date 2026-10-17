@@ -1,5 +1,36 @@
 # Estado para continuar el desarrollo
 
+## Punto de reanudación — 17-10-2026
+
+- Repositorio privado: `JotaJag/openrgb-game-sync`; copia local:
+  `/home/jose/Descargas/openrgb-game-sync`.
+- Rama actual: `feature/reactivity-recovery-0.6`, basada en
+  `feature/compatibility-0.6`. Último cambio funcional: `098e23e`;
+  confirmación del usuario registrada en `9a1af5e`. No se ha fusionado ni
+  publicado una release alpha.2; la prerelease publicada sigue siendo 0.5.0.
+- Instalación activa: **0.6.0-alpha.2**, funcionando con Diablo según el usuario.
+  Incluye deduplicación de paquetes/salidas, recuperación limitada de helpers
+  y contadores. El intervalo de render sigue en 33 ms; no afirmar 60 FPS ni
+  una mejora de latencia medida.
+- Conservar la DLL original de Diablo, los bloqueos de Battle.net/Diablo y la
+  preparación automática desactivada. La observación de la tecla Q está
+  aplazada por decisión del usuario; no investigarla sin retomar ese tema.
+- Verificación completa aprobada: 27 pruebas Python, ocho ejecutables host,
+  integración nativa con Effects/Sequence y REST, y adaptadores Wine.
+  El fixture propietario de Corsair original quedó SKIP. El servicio real
+  arrancó sin errores y el usuario confirmó funcionamiento del juego.
+- Informes locales ignorados por Git: `build/compatibility-verification.txt`
+  y `build/alpha2-installation-report.json`. Activación local:
+  `build/activate-alpha2.py`; depende del anterior `build/activate-alpha.py`.
+  No repetir esos scripts como si fueran un instalador público de actualización.
+- Pendiente: confirmación específica de devolución de prioridad al cambiar de
+  ventana/cerrar Diablo, pruebas con otros juegos y segunda máquina, y un
+  flujo público de actualización gestionada antes de distribuir otra release.
+  No hay una nueva tarea de implementación acordada.
+- Para continuar, leer este documento y `REACTIVITY-RECOVERY.md`, comprobar
+  Git y la instalación activa antes de modificarla. No reinstalar ni reactivar
+  preparación de DLL como paso rutinario.
+
 ## Trabajo actual: alpha.2
 
 La rama `feature/reactivity-recovery-0.6` añade deduplicación de paquetes y
