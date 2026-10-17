@@ -8,6 +8,7 @@ extern "C" {
 int gs_init(unsigned source, const void* module_address);
 int gs_frame(unsigned role, unsigned rows, unsigned cols, const uint32_t* colors);
 void gs_suspend(void);
+void gs_clear(unsigned role);
 void gs_shutdown(void);
 #ifdef __cplusplus
 }

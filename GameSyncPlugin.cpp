@@ -15,7 +15,7 @@ OpenRGBPluginInfo GameSyncPlugin::GetPluginInfo()
     OpenRGBPluginInfo info{};
     info.Name = "OpenRGB Game Sync";
     info.Description = "Iluminación Chroma, iCUE y Lightsync con prioridad automática";
-    info.Version = "0.5.0";
+    info.Version = "0.6.0-alpha.1";
     info.Commit = "local";
     info.Label = "Game Sync";
     info.Location = OPENRGB_PLUGIN_LOCATION_TOP;
@@ -79,6 +79,7 @@ void GameSyncPlugin::Load(OpenRGBPluginAPIInterface* value)
         connect(sourceToggles[i], &QCheckBox::toggled, this, [this, i](bool value) {
             receiver->setSourceEnabled(i + 1, value);
             saveSettings();
+            if (i == 0) manageRest();
             if (i == 1) managePipeServices();
         });
     }
@@ -162,16 +163,19 @@ void GameSyncPlugin::prepareGames()
 void GameSyncPlugin::manageRest()
 {
     if (!restProcess || !api) return;
-    if (!toggle->isChecked()) {
+    QFile config(QString::fromStdString(api->GetConfigurationDirectory()) + "/plugins/settings/GameSyncAutomation.json");
+    QJsonObject settings;
+    if (config.open(QIODevice::ReadOnly)) settings = QJsonDocument::fromJson(config.readAll()).object();
+    auto script = QFileInfo(settings.value("script").toString()).dir().filePath("chroma_rest.py");
+    // REST is a separate opt-in; it never needs launcher/DLL preparation enabled.
+    bool wanted = toggle->isChecked() && sourceToggles[0]->isChecked() &&
+                  settings.value("rest").toBool() && QFile::exists(script);
+    if (!wanted) {
         if (restProcess->state() != QProcess::NotRunning) { restProcess->terminate(); if (!restProcess->waitForFinished(500)) restProcess->kill(); }
+        restUnavailable = false;
         return;
     }
-    QFile config(QString::fromStdString(api->GetConfigurationDirectory()) + "/plugins/settings/GameSyncAutomation.json");
-    if (!config.open(QIODevice::ReadOnly)) return;
-    auto settings = QJsonDocument::fromJson(config.readAll()).object();
-    if (!settings.value("enabled").toBool() || !settings.value("rest").toBool()) return;
-    auto script = QFileInfo(settings.value("script").toString()).dir().filePath("chroma_rest.py");
-    if (QFile::exists(script) && restProcess->state() == QProcess::NotRunning)
+    if (restProcess->state() == QProcess::NotRunning)
         restProcess->start("/usr/bin/python3", {script});
 }
 

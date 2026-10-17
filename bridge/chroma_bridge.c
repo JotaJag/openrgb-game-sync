@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "../protocol.h"
+#include "chroma_frames.h"
 
 typedef struct { GUID id; GameSyncPacket packet; int used; } StoredEffect;
 typedef struct { int type; DWORD connected; } DeviceInfo;
@@ -152,38 +153,9 @@ static LONG create(unsigned device, int effect, const void* param, GUID* id)
     AcquireSRWLockExclusive(&guard);
     if (!initialized) { ReleaseSRWLockExclusive(&guard); return 1062; }
     GameSyncPacket p;
-    unsigned rows = 1, cols = 1;
-    int is_static = 0, is_custom = 0, custom_key = 0;
-    switch (device)
-    {
-        case 1: is_static = effect == 4; is_custom = effect == 2 || effect == 8;
-                custom_key = effect == 8; rows = 6; cols = 22; break;
-        case 2: is_static = effect == 6; is_custom = effect == 3 || effect == 8;
-                rows = effect == 8 ? 9 : 1; cols = effect == 8 ? 7 : 30; break;
-        case 3: is_static = effect == 1; is_custom = effect == 4; cols = 5; break;
-        case 4: is_static = effect == 4; is_custom = effect == 2; cols = 15; break;
-        case 5: is_static = effect == 5; is_custom = effect == 2; rows = 4; cols = 5; break;
-        case 6: is_static = effect == 2; is_custom = effect == 1; cols = 5; break;
-        default: ReleaseSRWLockExclusive(&guard); return 87;
-    }
-    if (effect != 0 && !is_static && !is_custom) { ReleaseSRWLockExclusive(&guard); return 50; }
-    if (effect != 0 && !param) { ReleaseSRWLockExclusive(&guard); return 87; }
-    header(&p, device, rows, cols);
-    const uint32_t* input = (const uint32_t*)param;
-    if (is_static)
-    {
-        uint32_t color = device == 2 ? input[1] : input[0];
-        for (unsigned i = 0; i < p.count; ++i) p.colors[i] = color & 0xffffff;
-    }
-    if (is_custom)
-    {
-        for (unsigned i = 0; i < p.count; ++i)
-        {
-            uint32_t color = input[i];
-            if (custom_key && (input[p.count + i] & 0x01000000)) color = input[p.count + i];
-            p.colors[i] = color & 0xffffff;
-        }
-    }
+    header(&p, device, 1, 1);
+    LONG rc = chroma_frame(device, effect, (const uint32_t*)param, &p);
+    if (rc) { ReleaseSRWLockExclusive(&guard); return rc; }
     if (id)
     {
         unsigned slot;

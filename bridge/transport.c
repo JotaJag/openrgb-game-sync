@@ -82,7 +82,7 @@ fail:
 }
 int gs_frame(unsigned role, unsigned rows, unsigned cols, const uint32_t* colors)
 {
-    if (!colors || role < 1 || role > 6 || !rows || !cols || rows > 6 || cols > 132 || rows * cols > GS_MAX_COLORS) return 0;
+    if (!colors || role < 1 || role > 6 || !rows || !cols || rows > GS_MAX_COLORS || cols > GS_MAX_COLORS || rows * cols > GS_MAX_COLORS) return 0;
     AcquireSRWLockExclusive(&guard);
     if (!initialized) { ReleaseSRWLockExclusive(&guard); return 0; }
     GameSyncPacket* p = &frames[role - 1]; make_header(p);
@@ -95,6 +95,25 @@ void gs_suspend(void)
 {
     AcquireSRWLockExclusive(&guard);
     if (initialized) { memset(valid, 0, sizeof(valid)); release_session(); }
+    ReleaseSRWLockExclusive(&guard);
+}
+void gs_clear(unsigned role)
+{
+    if (role < 1 || role > 6) return;
+    AcquireSRWLockExclusive(&guard);
+    if (initialized)
+    {
+        valid[role - 1] = 0;
+        int any = 0;
+        for (int i = 0; i < 6; ++i) any |= valid[i];
+        if (!any) release_session();
+        else
+        {
+            GameSyncPacket p; make_header(&p); p.kind = 3;
+            p.device = (uint16_t)((source_id << 8) | role);
+            send_packet(&p);
+        }
+    }
     ReleaseSRWLockExclusive(&guard);
 }
 void gs_shutdown(void)

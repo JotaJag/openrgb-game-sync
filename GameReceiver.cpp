@@ -49,37 +49,52 @@ void GameReceiver::readPackets()
         auto datagram = socket.receiveDatagram(GS_HEADER_SIZE + GS_MAX_COLORS * 4 + 1);
         const auto data = datagram.data();
         if (!enabled || datagram.senderAddress() != QHostAddress::LocalHost || data.size() < GS_HEADER_SIZE) continue;
-        GameSyncPacket p{};
-        std::memcpy(&p, data.constData(), std::min<size_t>(sizeof(p), data.size()));
-        if (p.magic != GS_MAGIC || (p.version != 1 && p.version != 2)) continue;
-        QByteArray session(reinterpret_cast<const char*>(p.session), 16);
-        if (session == QByteArray(16, '\0')) continue;
-        if (p.kind == 2)
-        {
-            if (data.size() == GS_HEADER_SIZE && session == owner) release();
-            continue;
-        }
-        const unsigned source = p.version == 1 ? 1 : (p.device >> 8);
-        if (source < 1 || source > 3 || !sources[source]) continue;
-        p.device &= 0xff;
-        if (p.kind != 1 || p.device < 1 || p.device > 6 || p.count == 0 || p.count > GS_MAX_COLORS ||
-            p.rows == 0 || p.cols == 0 || unsigned(p.rows) * p.cols != p.count ||
-            data.size() != GS_HEADER_SIZE + p.count * 4) continue;
-        // Keep one application in control until it releases or times out.
-        if (active() && owner != session) continue;
-        if (!active())
-        {
-            owner = session;
-            ownerSource = source;
-            application = QString::fromUtf8(p.app, int(strnlen(p.app, 64))).left(64);
-            if (application.isEmpty()) application = "Juego compatible";
-            const QString names[] = {"", "Chroma", "iCUE", "Lightsync"};
-            if (status) status(names[source] + " · " + application);
-        }
-        lastFrame = clock.elapsed();
-        GameFrame frame{p.device, p.rows, p.cols, {}};
-        for (unsigned i = 0; i < p.count; ++i) frame.colors.push_back(p.colors[i] & 0xffffff);
-        frames[p.device] = frame;
-        if (changed) changed();
+        processPacket(data);
     }
+}
+
+void GameReceiver::processPacket(const QByteArray& data)
+{
+    if (!enabled || data.size() < GS_HEADER_SIZE) return;
+    GameSyncPacket p{};
+    std::memcpy(&p, data.constData(), std::min<size_t>(sizeof(p), data.size()));
+    if (p.magic != GS_MAGIC || (p.version != 1 && p.version != 2)) return;
+    QByteArray session(reinterpret_cast<const char*>(p.session), 16);
+    if (session == QByteArray(16, '\0')) return;
+    if (p.kind == 2)
+    {
+        if (data.size() == GS_HEADER_SIZE && session == owner) release();
+        return;
+    }
+    const unsigned source = p.version == 1 ? 1 : (p.device >> 8);
+    if (source < 1 || source > 3 || !sources[source]) return;
+    p.device &= 0xff;
+    if (p.kind == 3)
+    {
+        if (p.version != 2 || data.size() != GS_HEADER_SIZE || p.count || p.rows || p.cols ||
+            p.device < 1 || p.device > 6 || session != owner || source != ownerSource) return;
+        frames.remove(p.device);
+        if (frames.isEmpty()) release();
+        else if (changed) changed();
+        return;
+    }
+    if (p.kind != 1 || p.device < 1 || p.device > 6 || p.count == 0 || p.count > GS_MAX_COLORS ||
+        p.rows == 0 || p.cols == 0 || unsigned(p.rows) * p.cols != p.count ||
+        data.size() != GS_HEADER_SIZE + p.count * 4) return;
+    // Keep one application in control until it releases or times out.
+    if (active() && owner != session) return;
+    if (!active())
+    {
+        owner = session;
+        ownerSource = source;
+        application = QString::fromUtf8(p.app, int(strnlen(p.app, 64))).left(64);
+        if (application.isEmpty()) application = "Juego compatible";
+        const QString names[] = {"", "Chroma", "iCUE", "Lightsync"};
+        if (status) status(names[source] + " · " + application);
+    }
+    lastFrame = clock.elapsed();
+    GameFrame frame{p.device, p.rows, p.cols, {}};
+    for (unsigned i = 0; i < p.count; ++i) frame.colors.push_back(p.colors[i] & 0xffffff);
+    frames[p.device] = frame;
+    if (changed) changed();
 }

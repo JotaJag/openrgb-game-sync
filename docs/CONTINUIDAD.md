@@ -2,6 +2,25 @@
 
 ## Punto de partida
 
+La rama `feature/compatibility-0.6` añade una alpha `0.6.0-alpha.1` sobre la
+release privada 0.5.0, que no se modifica. Consulta `COMPATIBILITY.md` para la
+cobertura exacta: CUSTOM2/lotes Chroma, ratón iCUE 4 y liberación por dispositivo,
+LED ausentes iCUE 3, animaciones temporizadas Lightsync y REST independiente
+de la preparación de bibliotecas.
+
+Verificación de la alpha: pasan 25 pruebas Python y seis ejecutables host
+(decodificador Chroma, SDK 3, SDK 4, Lightsync, receptor Qt y metadatos del
+plugin). Chroma y Lightsync también pasan UBSan. Se han compilado el plugin
+Linux, los siete adaptadores DLL Windows y los fixtures de pruebas, incluido
+`extended-smoke.exe`. No se pierde ninguna exportación de las siete DLL de 0.5.
+El paquete alpha se ha instalado y desinstalado en una carpeta temporal.
+
+Pendiente: `bash scripts/verify-compatibility.sh --wine` desde una terminal sin
+las restricciones de sockets de esta sesión. Incluye pruebas nuevas de los DLL
+reales y sus threads (CUSTOM2, ratón SDK 4 y flash/pulso), además de las suites
+anteriores. No afirmar que Wine/juegos están validados antes de revisar ese
+informe. El OpenRGB activo sigue usando su versión previa.
+
 Prototipo 0.5.0 para OpenRGB 1.0 / Qt6 / Plugin API 5 en Linux.
 El usuario validó visualmente Diablo IV con la DLL Corsair 3.0.234 original:
 las luces funcionan y el rendimiento parece correcto después de corregir

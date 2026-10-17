@@ -34,6 +34,9 @@ bash tests/build.sh
 Pruebas que no necesitan acceso a juegos:
 
 ```bash
+bash tests/host-build.sh
+python3 tests/chroma_compat_test.py
+python3 tests/rest_configuration_test.py
 python3 tests/installer_test.py
 python3 tests/pipe_service_test.py
 python3 tests/hardening_test.py
@@ -56,7 +59,7 @@ Generar paquete instalable:
 python3 scripts/package.py
 ```
 
-Produce `dist/openrgb-game-sync-0.5.0-linux-x86_64.tar.gz` y su SHA-256.
+Produce `dist/openrgb-game-sync-<VersionStr>-linux-x86_64.tar.gz` y su SHA-256.
 Contiene `install.sh`, `uninstall.sh`, el asistente para configurar un prefijo,
 los dos plugins y el runtime necesario. Las bibliotecas se toman de la
 compilación local: no se afirma compatibilidad universal entre distribuciones.

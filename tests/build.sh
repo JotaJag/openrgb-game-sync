@@ -38,3 +38,6 @@ SDK_ROOT="$PWD/toolchain/usr/x86_64-w64-mingw32"
 clang++ --target=x86_64-w64-windows-gnu --sysroot="$SDK_ROOT" -fuse-ld=lld \
  -std=c++17 -O2 -fno-exceptions -fno-rtti -fno-stack-protector -mno-stack-arg-probe -nostdlib \
  -Wl,--entry,mainCRTStartup -L"$SDK_ROOT/lib" tests/cue4_smoke.cpp -lkernel32 -o build/cue4-smoke.exe
+clang++ --target=x86_64-w64-windows-gnu --sysroot="$SDK_ROOT" -fuse-ld=lld \
+ -std=c++17 -O2 -fno-exceptions -fno-rtti -fno-stack-protector -mno-stack-arg-probe -nostdlib \
+ -Wl,--entry,mainCRTStartup -L"$SDK_ROOT/lib" tests/extended_smoke.cpp -lkernel32 -o build/extended-smoke.exe
