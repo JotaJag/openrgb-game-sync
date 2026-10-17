@@ -27,6 +27,8 @@ class GameReceiver : public QObject
     bool sources[4] = {false, true, true, true};
     unsigned int ownerSource = 0;
     void readPackets();
+    void processPacket(const QByteArray& data);
+    friend struct GameReceiverTest;
 public:
     QMap<unsigned int, GameFrame> frames;
     std::function<void()> changed;

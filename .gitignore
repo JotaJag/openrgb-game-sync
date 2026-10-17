@@ -1,5 +1,5 @@
 /build/
-/toolchain/
+/toolchain
 __pycache__/
 /dist/
 *.pyc

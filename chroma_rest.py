@@ -8,32 +8,64 @@ DEVICES={'keyboard':(1,6,22),'mouse':(2,9,7),'headset':(3,1,5),
          'mousepad':(4,1,15),'keypad':(5,4,5),'chromalink':(6,1,5)}
 
 
-def effect_frame(device,data):
-    role,rows,cols=DEVICES[device]; effect=data.get('effect'); param=data.get('param')
-    if effect=='CHROMA_NONE': colors=[0]*(rows*cols)
-    elif effect=='CHROMA_STATIC':
-        color=param['color']
-        if type(color)!=int or not 0<=color<=0xffffff: raise ValueError('color')
-        colors=[color]*(rows*cols)
-    elif effect in ('CHROMA_CUSTOM','CHROMA_CUSTOM_KEY'):
-        matrix=param
-        overlay=None
-        if effect=='CHROMA_CUSTOM_KEY':
-            if device!='keyboard': raise ValueError('device')
-            matrix=param['color']; overlay=param['key']
-        def flatten(value):
-            if rows==1 and isinstance(value,list) and len(value)==cols and all(type(c)==int for c in value): return value
-            if not isinstance(value,list) or len(value)!=rows: raise ValueError('rows')
-            if any(not isinstance(row,list) or len(row)!=cols for row in value): raise ValueError('columns')
-            return [c for row in value for c in row]
-        colors=flatten(matrix)
-        if any(type(c)!=int or not 0<=c<=0xffffff for c in colors): raise ValueError('color')
-        if overlay is not None:
-            keys=flatten(overlay)
-            if any(type(c)!=int or not 0<=c<=0x1ffffff for c in keys): raise ValueError('key')
-            colors=[(k&0xffffff) if k&0x1000000 else c for c,k in zip(colors,keys)]
+def flatten_colors(value, rows, cols, maximum=0xffffff):
+    if rows == 1 and isinstance(value, list) and len(value) == cols and all(type(c) == int for c in value):
+        colors = value
+    else:
+        if not isinstance(value, list) or len(value) != rows: raise ValueError('rows')
+        if any(not isinstance(row, list) or len(row) != cols for row in value): raise ValueError('columns')
+        colors = [c for row in value for c in row]
+    if any(type(c) != int or not 0 <= c <= maximum for c in colors): raise ValueError('color')
+    return colors
+
+
+def effect_frame(device, data):
+    if not isinstance(data, dict): raise ValueError('effect')
+    role, rows, cols = DEVICES[device]
+    effect = data.get('effect'); param = data.get('param')
+    if effect == 'CHROMA_NONE': colors = [0] * (rows * cols)
+    elif effect == 'CHROMA_STATIC':
+        color = param['color']
+        if type(color) != int or not 0 <= color <= 0xffffff: raise ValueError('color')
+        colors = [color] * (rows * cols)
+    elif effect in ('CHROMA_CUSTOM', 'CHROMA_CUSTOM_KEY', 'CHROMA_CUSTOM2'):
+        overlay = None
+        if effect == 'CHROMA_CUSTOM_KEY':
+            if device != 'keyboard': raise ValueError('device')
+            matrix = param['color']; overlay = param['key']
+        elif effect == 'CHROMA_CUSTOM2':
+            if device == 'keyboard':
+                rows, cols = 8, 24
+                matrix = param['color']; overlay = param['key']
+            elif device == 'mouse': matrix = param
+            elif device == 'mousepad': rows, cols, matrix = 1, 20, param
+            else: raise NotImplementedError(effect)
+        else:
+            matrix = param
+            # Retain the existing mouse-grid input and also accept the legacy 30 LEDs.
+            if device == 'mouse' and isinstance(matrix, list) and len(matrix) == 30:
+                rows, cols = 1, 30
+        colors = flatten_colors(matrix, rows, cols)
+        if effect == 'CHROMA_CUSTOM_KEY' or (effect == 'CHROMA_CUSTOM2' and device == 'keyboard'):
+            keys = flatten_colors(overlay, 6, 22, 0x1ffffff)
+            colors = [(keys[(r * 6 // rows) * 22 + c * 22 // cols] & 0xffffff)
+                      if keys[(r * 6 // rows) * 22 + c * 22 // cols] & 0x1000000 else colors[r * cols + c]
+                      for r in range(rows) for c in range(cols)]
     else: raise NotImplementedError(effect)
-    return role,rows,cols,colors
+    return role, rows, cols, colors
+
+
+def create_cached_effect(session, device, data):
+    try:
+        frame = effect_frame(device, data)
+    except NotImplementedError:
+        return {'result': 50}
+    except (ValueError, KeyError, TypeError, OverflowError):
+        return {'result': 87}
+    if len(session['effects']) >= 256: return {'result': 8}
+    key = str(uuid.uuid4())
+    session['effects'][key] = frame
+    return {'result': 0, 'id': key}
 
 
 class Server(HTTPServer):
@@ -97,19 +129,33 @@ class Handler(BaseHTTPRequestHandler):
             if len(parts)==2 and method=='DELETE':
                 self.server.packet(session); del self.server.sessions[parts[0]]; return self.answer({'result':0})
             if endpoint=='heartbeat' and method=='PUT': return self.answer({'tick':int(time.monotonic()),'result':0})
-            if endpoint in DEVICES and method in ('PUT','POST'):
-                frame=effect_frame(endpoint,body)
-                if method=='PUT':
-                    session['frames'][frame[0]]=frame; self.server.packet(session,frame); return self.answer({'result':0})
-                if len(session['effects'])>=256: return self.answer({'result':8},503)
-                key=str(uuid.uuid4()); session['effects'][key]=frame; return self.answer({'result':0,'id':key})
-            if endpoint=='effect' and method in ('PUT','DELETE'):
-                key=body['id']
-                if key not in session['effects']: return self.answer({'result':87})
-                if method=='DELETE': del session['effects'][key]
-                else:
-                    frame=session['effects'][key]; session['frames'][frame[0]]=frame; self.server.packet(session,frame)
-                return self.answer({'result':0})
+            if endpoint in DEVICES and method in ('PUT', 'POST'):
+                if method == 'PUT':
+                    frame = effect_frame(endpoint, body)
+                    session['frames'][frame[0]] = frame
+                    self.server.packet(session, frame)
+                    return self.answer({'result': 0})
+                if 'effects' in body:
+                    items = body['effects']
+                    if not isinstance(items, list) or not 1 <= len(items) <= 256: raise ValueError('effects')
+                    return self.answer({'results': [create_cached_effect(session, endpoint, item) for item in items]})
+                result = create_cached_effect(session, endpoint, body)
+                return self.answer(result, 503 if result['result'] == 8 else 200)
+            if endpoint == 'effect' and method in ('PUT', 'DELETE'):
+                grouped = 'ids' in body
+                ids = body['ids'] if grouped else [body['id']]
+                if not isinstance(ids, list) or not 1 <= len(ids) <= 256 or any(not isinstance(key, str) for key in ids):
+                    raise ValueError('ids')
+                results = []
+                for key in ids:
+                    if key not in session['effects']: results.append({'result': 87}); continue
+                    if method == 'DELETE': del session['effects'][key]
+                    else:
+                        frame = session['effects'][key]
+                        session['frames'][frame[0]] = frame
+                        self.server.packet(session, frame)
+                    results.append({'result': 0})
+                return self.answer({'results': results} if grouped else results[0])
             return self.answer({'result':50},404)
         except NotImplementedError: self.answer({'result':50})
         except (ValueError,KeyError,TypeError,OverflowError): self.answer({'result':87},400)

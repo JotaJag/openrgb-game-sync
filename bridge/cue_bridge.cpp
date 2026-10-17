@@ -41,14 +41,21 @@ static bool buffer(int device, int size, CorsairLedColor* colors)
     if (!initialized) return result(false, CE_ProtocolHandshakeMissing);
     if (device < 0 || device > 1 || size < 0 || size > 4096 || (size && !colors)) return result(false);
     for (int i = 0; i < size; ++i)
-        if (index_for(device, colors[i].ledId) < 0 || colors[i].r < 0 || colors[i].r > 255 ||
-            colors[i].g < 0 || colors[i].g > 255 || colors[i].b < 0 || colors[i].b > 255) return result(false);
+    {
+        if (colors[i].ledId <= CLI_Invalid || colors[i].ledId > CLI_Last ||
+            colors[i].r < 0 || colors[i].r > 255 || colors[i].g < 0 || colors[i].g > 255 ||
+            colors[i].b < 0 || colors[i].b > 255) return result(false);
+        for(int j=0;j<i;++j)if(colors[j].ledId==colors[i].ledId)return result(false);
+    }
     for (int i = 0; i < size; ++i)
     {
         auto c = colors[i];
-        (device == 0 ? keyboard : mouse)[index_for(device, c.ledId)] = uint32_t(c.r | (c.g << 8) | (c.b << 16));
+        int index=index_for(device,c.ledId);
+        if(index>=0){
+            (device == 0 ? keyboard : mouse)[index] = uint32_t(c.r | (c.g << 8) | (c.b << 16));
+            dirty[device]=true;
+        }
     }
-    if (size) dirty[device] = true;
     return result(true);
 }
 static bool flush()
@@ -125,10 +132,15 @@ bool CorsairGetLedsColorsByDeviceIndex(int device, int size, CorsairLedColor* co
 {
     AcquireSRWLockExclusive(&guard);
     bool ok = initialized && device >= 0 && device < 2 && size >= 0 && size <= 4096 && (!size || colors);
-    if (ok) for (int i = 0; i < size; ++i) if (index_for(device, colors[i].ledId) < 0) ok = false;
+    if (ok) for (int i = 0; i < size; ++i) {
+        if(colors[i].ledId<=CLI_Invalid||colors[i].ledId>CLI_Last)ok=false;
+        for(int j=0;j<i;++j)if(colors[j].ledId==colors[i].ledId)ok=false;
+    }
     if (ok) for (int i = 0; i < size; ++i)
     {
-        auto c = (device == 0 ? keyboard : mouse)[index_for(device, colors[i].ledId)];
+        int index=index_for(device,colors[i].ledId);
+        if(index<0)continue;
+        auto c = (device == 0 ? keyboard : mouse)[index];
         colors[i].r = c & 255; colors[i].g = (c >> 8) & 255; colors[i].b = (c >> 16) & 255;
     }
     result(ok); ReleaseSRWLockExclusive(&guard); return ok;

@@ -60,6 +60,20 @@ se ceden al juego cuando envía colores y tiene el foco; al salir se devuelve el
 control a Effects. Si hay errores, revisa el estado en la pestaña Game Sync y
 `~/.local/share/openrgb-game-sync/pipe-service/game.json.log`.
 
+## Chroma REST en la versión de desarrollo 0.6
+
+Con OpenRGB cerrado, desde el paquete 0.6 ejecuta:
+
+```sh
+python3 configure-rest.py
+```
+
+Después abre OpenRGB y activa Game Sync y Chroma. El servicio escucha solo en
+`127.0.0.1:54235`; esta opción es independiente de la preparación de DLL y no la
+activa. El juego o su SDK debe utilizar esa interfaz REST. No convierte en
+compatibles los juegos que solo utilizan otra interfaz. Para desactivarlo usa
+`python3 configure-rest.py --disable` con OpenRGB cerrado.
+
 ## Desinstalar o actualizar
 
 Cierra OpenRGB y, desde la carpeta del paquete conservada, ejecuta:
