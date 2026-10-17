@@ -8,8 +8,13 @@ contadores de diagnóstico. Detalles en `REACTIVITY-RECOVERY.md`.
 Pasan 25 pruebas Python sin sockets y ocho ejecutables host, incluidos procesos
 reales que fallan o dejan de actualizar su estado y el renderizador con
 controladores simulados. Se ha compilado la integración nativa ampliada.
-Pendiente ejecutar `bash scripts/verify-compatibility.sh --wine` desde la
-terminal del usuario: el entorno de desarrollo restringe los sockets.
+Verificación externa completada el 17-10-2026 sobre `098e23e`: pasan las
+27 pruebas Python, los ocho ejecutables host, la integración nativa con
+Sequence/REST y las pruebas Wine de Chroma, iCUE 3/4 y Lightsync, incluidas
+las variantes de 32 bits y CUSTOM2/ratón/flash/pulso. Se confirma que los
+heartbeats repetidos mantienen la prioridad sin escrituras adicionales.
+El informe termina con PASS. El fixture de DLL Corsair original sigue
+ausente (SKIP), por lo que esa ruta no se considera revalidada.
 
 El paquete alpha.2 se genera localmente; no se ha instalado sobre OpenRGB.
 La instalación activa sigue siendo alpha.1 y el usuario confirmó que funciona.

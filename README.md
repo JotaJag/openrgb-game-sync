@@ -41,7 +41,8 @@ validarlas visualmente y medir su comportamiento en juegos reales.
 La alpha.2 evita escrituras de iluminación repetidas, supervisa los servicios
 con reintentos limitados y muestra contadores de diagnóstico. Consulta
 [reactividad y recuperación](docs/REACTIVITY-RECOVERY.md) para sus límites y
-pruebas; su integración completa bajo Wine está pendiente de revalidación.
+pruebas. La integración nativa y las pruebas de adaptadores bajo Wine pasan;
+la ruta de la DLL Corsair original no se ha revalidado en esta ejecución.
 
 ## Estado
 
