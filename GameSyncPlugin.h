@@ -8,6 +8,7 @@
 #include "OpenRGBPluginInterface.h"
 #include "GameReceiver.h"
 #include "PriorityLease.h"
+#include "HelperProcess.h"
 
 class GameSyncPlugin : public QObject, public OpenRGBPluginInterface
 {
@@ -21,16 +22,18 @@ class GameSyncPlugin : public QObject, public OpenRGBPluginInterface
     QLabel* label = nullptr;
     QLabel* automationLabel = nullptr;
     QLabel* pipeLabel = nullptr;
+    QLabel* diagnosticsLabel = nullptr;
     GameReceiver* receiver = nullptr;
     QTimer* renderTimer = nullptr;
     QTimer* automationTimer = nullptr;
     QProcess* automationProcess = nullptr;
-    QProcess* restProcess = nullptr;
-    std::vector<QProcess*> pipeProcesses;
+    HelperProcess* restProcess = nullptr;
+    std::vector<HelperProcess*> pipeProcesses;
     QStringList pipeStatusPaths;
     QTimer* pipeStatusTimer = nullptr;
     void managePipeServices(bool stopping = false);
     void updatePipeStatus();
+    void updateDiagnostics();
     QTimer* automationDeadline = nullptr;
     QString automationStatusPath;
     void updateAutomationStatus();
@@ -38,12 +41,14 @@ class GameSyncPlugin : public QObject, public OpenRGBPluginInterface
     void prepareGames();
     PriorityLease lease{true};
     std::mutex devicesMutex;
-    struct Snapshot { int mode; std::vector<RGBColor> colors; };
+    struct Snapshot { int mode; std::vector<RGBColor> colors, submitted; };
     std::map<RGBControllerInterface*, Snapshot> snapshots;
-    bool detecting = false, dirty = false, ready = false, restUnavailable = false;
+    bool detecting = false, dirty = false, ready = false;
+    quint64 hardwareWrites = 0;
     void render();
     void relinquish();
     void saveSettings();
+    friend struct GameSyncPluginTest;
 public:
     OpenRGBPluginInfo GetPluginInfo() override;
     unsigned int GetPluginAPIVersion() override { return OPENRGB_PLUGIN_API_VERSION; }

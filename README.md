@@ -2,7 +2,7 @@
 
 Plugin para dar prioridad a la iluminación enviada por juegos compatibles en
 Linux con Wine/Proton y devolver el control a Effects cuando dejan de enviar.
-Rama de desarrollo 0.6.0-alpha.1. La prerelease publicada 0.5.0 se conserva.
+Rama de desarrollo 0.6.0-alpha.2. La prerelease publicada 0.5.0 se conserva.
 
 ## Instalación sencilla
 
@@ -37,6 +37,11 @@ paquetes iCUE 3 con LED ausentes; flash/pulso por software para Lightsync.
 Consulta la [matriz de compatibilidad y límites](docs/COMPATIBILITY.md).
 Estas mejoras pasan pruebas aisladas y de integración bajo Wine; falta
 validarlas visualmente y medir su comportamiento en juegos reales.
+
+La alpha.2 evita escrituras de iluminación repetidas, supervisa los servicios
+con reintentos limitados y muestra contadores de diagnóstico. Consulta
+[reactividad y recuperación](docs/REACTIVITY-RECOVERY.md) para sus límites y
+pruebas; su integración completa bajo Wine está pendiente de revalidación.
 
 ## Estado
 

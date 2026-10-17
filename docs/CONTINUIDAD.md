@@ -1,5 +1,21 @@
 # Estado para continuar el desarrollo
 
+## Trabajo actual: alpha.2
+
+La rama `feature/reactivity-recovery-0.6` añade deduplicación de paquetes y
+salidas por dispositivo, supervisión de helpers con reintentos limitados y
+contadores de diagnóstico. Detalles en `REACTIVITY-RECOVERY.md`.
+Pasan 25 pruebas Python sin sockets y ocho ejecutables host, incluidos procesos
+reales que fallan o dejan de actualizar su estado y el renderizador con
+controladores simulados. Se ha compilado la integración nativa ampliada.
+Pendiente ejecutar `bash scripts/verify-compatibility.sh --wine` desde la
+terminal del usuario: el entorno de desarrollo restringe los sockets.
+
+El paquete alpha.2 se genera localmente; no se ha instalado sobre OpenRGB.
+La instalación activa sigue siendo alpha.1 y el usuario confirmó que funciona.
+La observación sobre la tecla Q queda aplazada y no se cambia su mapeo.
+Los resultados siguientes corresponden a la alpha.1, no a la alpha.2.
+
 ## Punto de partida
 
 La rama `feature/compatibility-0.6` añade una alpha `0.6.0-alpha.1` sobre la
@@ -35,9 +51,9 @@ validado; se mantienen la preparación automática desactivada y los bloqueos
 para Battle.net/Diablo. Existe copia completa de configuración y plugins para
 restaurar la instalación anterior.
 
-Pendiente: abrir Diablo y validar luces, rendimiento y devolución de prioridad
-al cambiar de ventana/cerrar el juego. La validación histórica de juego real
-corresponde a 0.5; todavía no se afirma esa validación para 0.6.
+El usuario confirmó posteriormente que la alpha.1 funciona con Diablo.
+No se dispone de una medición instrumental de latencia ni de validación
+exhaustiva de todos los juegos.
 
 Prototipo 0.5.0 para OpenRGB 1.0 / Qt6 / Plugin API 5 en Linux.
 El usuario validó visualmente Diablo IV con la DLL Corsair 3.0.234 original:

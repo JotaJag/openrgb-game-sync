@@ -25,6 +25,7 @@ class Device : public NullController
 {
 public:
     RGBColor color = 0;
+    std::atomic<unsigned int> writes{0};
     unsigned int GetLEDCount() override { return 1; }
     unsigned int GetZoneCount() override { return 1; }
     unsigned int GetZoneLEDsCount(unsigned int) override { return 1; }
@@ -34,6 +35,7 @@ public:
     std::string GetModeName(unsigned int) override { return "Direct"; }
     void SetAllColors(RGBColor c) override { color = c; }
     void SetAllZoneColors(int, RGBColor c) override { color = c; }
+    void UpdateLEDs() override { ++writes; }
 };
 
 class API : public NullAPI
@@ -115,6 +117,11 @@ int main(int argc, char** argv)
         PriorityLease lease; PriorityLock lock(lease);
         check(api.device.color == ToRGBColor(0,255,0), "game color reaches the OpenRGB controller without competing writes");
     }
+    const auto unchangedWrites = api.device.writes.load();
+    before = effect.steps.load();
+    for (int i=0; i<12; ++i) { send(); wait(200); }
+    check(api.device.writes == unchangedWrites && effect.steps == before,
+          "unchanged heartbeats keep game priority beyond lease expiry without hardware writes");
     toggle->setChecked(false); wait(100);
     check(effect.steps > before && api.settings["enabled"] == false, "switch disables game priority and immediately restores Sequence");
     check(api.staticDevice.color == ToRGBColor(32,16,8), "devices outside Sequence recover their previous static lighting");

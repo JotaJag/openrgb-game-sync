@@ -2,8 +2,8 @@
     "Id": "local.openrgb.gamesync",
     "Name": "OpenRGB Game Sync",
     "VendorId": "local",
-    "Version": "0.6.0-alpha.1",
-    "VersionStr": "0.6.0-alpha.1",
+    "Version": "0.6.0-alpha.2",
+    "VersionStr": "0.6.0-alpha.2",
     "Description": "Automatic priority for compatible game lighting",
     "OpenRGBPluginAPIVersion": 5
 }
