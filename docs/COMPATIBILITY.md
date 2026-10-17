@@ -67,8 +67,9 @@ registro y el worker en prefijos temporales. La prueba de la DLL Corsair origina
 se marca `SKIP`: no se distribuye ese fixture. Este resultado valida los casos
 ensayados bajo Wine, no todos los juegos ni las variantes de SDK existentes.
 
-0.5.0 se validó visualmente con Diablo IV. **Estos cambios 0.6 no se han validado
-todavía en juegos reales ni instalado en el OpenRGB activo del usuario.**
+0.5.0 se validó visualmente con Diablo IV. La alpha 0.6 ya está instalada en el
+equipo del usuario y su servicio arranca sin errores, conservando la DLL original.
+**Falta validar visualmente y comprobar el rendimiento de 0.6 en juegos reales.**
 
 ## Referencias de las interfaces
 

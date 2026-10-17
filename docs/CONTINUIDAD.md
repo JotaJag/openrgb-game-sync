@@ -28,9 +28,16 @@ El servicio con DLL Corsair original se marcó como `SKIP` al no incluir el
 fixture propietario. No se considera revalidado por esta ejecución. El test
 permite exigirlo con `OPENRGB_REQUIRE_ORIGINAL_FIXTURE=1`.
 
-Pendiente: validación visual/rendimiento de 0.6 en juegos reales e instalación
-controlada en el equipo del usuario. El OpenRGB activo sigue usando su versión
-previa; la validación histórica de Diablo corresponde a 0.5.
+La alpha 0.6.0-alpha.1 ya está instalada y OpenRGB reiniciado. La actualización
+controlada confirmó la carga de ambos plugins y el servicio de Diablo activo,
+sin errores y esperando sesiones. La DLL original de Diablo conserva su SHA-256
+validado; se mantienen la preparación automática desactivada y los bloqueos
+para Battle.net/Diablo. Existe copia completa de configuración y plugins para
+restaurar la instalación anterior.
+
+Pendiente: abrir Diablo y validar luces, rendimiento y devolución de prioridad
+al cambiar de ventana/cerrar el juego. La validación histórica de juego real
+corresponde a 0.5; todavía no se afirma esa validación para 0.6.
 
 Prototipo 0.5.0 para OpenRGB 1.0 / Qt6 / Plugin API 5 en Linux.
 El usuario validó visualmente Diablo IV con la DLL Corsair 3.0.234 original:
